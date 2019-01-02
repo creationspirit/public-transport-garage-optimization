@@ -1,5 +1,7 @@
 import argparse
 
+from heuristic import Solver
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -8,18 +10,12 @@ def main():
                         help='Name of input file stored in data/ folder')
 
     args = parser.parse_args()
-    (vehicle_count, track_count, vehicle_lengths, vehicle_series,
-        vehicle_restrictions, track_lengths, departure_times,
-        schedule_type, blocking_tracks) = load_instance(args.inputfile)
-    print(vehicle_count)
-    print(track_count)
-    print(vehicle_lengths)
-    print(vehicle_series)
-    print(vehicle_restrictions)
-    print(track_lengths)
-    print(departure_times)
-    print(schedule_type)
-    print(blocking_tracks)
+    # (vehicle_count, track_count, vehicle_lengths, vehicle_series,
+    #     vehicle_restrictions, track_lengths, departure_times,
+    #     schedule_type, blocking_tracks) = load_instance(args.inputfile)
+    instance_data = load_instance(args.inputfile)
+    solver = Solver(*instance_data)
+    print(solver)
 
 
 def load_instance(filename):
