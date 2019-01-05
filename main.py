@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from heuristic import Solver
 
@@ -10,17 +11,17 @@ def main():
                         help='Name of input file stored in data/ folder')
     args = parser.parse_args()
 
+    instance = args.inputfile[8]
     instance_data = load_instance(args.inputfile)
     solver = Solver(*instance_data)
-    print(solver.generate_initial_solution())
-    print(solver.global_goal_first())
-    print(solver.global_goal_second())
-    print(solver.fitness_func())
-    # print(solver.track_length_sum)
-    # print(solver.vehicle_length_sum)
-    # print(list(solver.blocking_tracks.keys()))
-    # print(solver.nonblocking_tracks)
-    # print(solver.vehicle_restrictions[:, 25])
+
+    print('Initial solution')
+    print('First global goal:', solver.global_goal_first(solver.initial_solution))
+    print('Second global goal:', solver.global_goal_second(solver.initial_solution))
+    print('Fitness function:', solver.fitness_func(solver.initial_solution))
+    print(solver.initial_solution)
+
+    write_result(str(solver.initial_solution), 'initial', instance)
 
 
 def load_instance(filename):
@@ -69,7 +70,12 @@ def load_instance(filename):
 def write_result(result_string, time, instance):
     filename = 'res-{}-i{}.txt'.format(time, instance)
     file_path = 'output/{}'.format(filename)
-    with open(file_path, 'w') as f:
+
+    directory_name = os.path.join(os.getcwd(), 'output')
+    if not os.path.isdir(directory_name):
+        os.mkdir(directory_name)
+
+    with open(file_path, 'w+') as f:
         f.write(result_string)
 
 
