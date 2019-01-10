@@ -23,8 +23,8 @@ class Solver:
         self.vehicle_length_sum = sum(self.vehicle_lengths)
 
         # tracks that are not blocking and are not blocked
-        blocked = [item for sublist in self.blocking_tracks.values() for item in sublist]
-        blocking = list(self.blocking_tracks.keys())
+        blocked = [item - 1 for sublist in self.blocking_tracks.values() for item in sublist]
+        blocking = [item - 1 for item in self.blocking_tracks.keys()]
         self.nonblocking_tracks = [t for t in list(range(self.track_count))
                                    if t not in blocked + blocking]
 
@@ -106,7 +106,7 @@ class Solver:
             return -4 * (10 - deprature_diff)
 
     def fitness_func(self, solution):
-        return self.global_goal_second(solution) + (1.0 / self.global_goal_first(solution))
+        return self.global_goal_second(solution) / self.global_goal_first(solution)
 
     def generate_initial_solution(self):
         s = Solution(self.track_count, self.track_lengths)
@@ -118,6 +118,7 @@ class Solver:
         tracks = list(range(self.track_count))
 
         for vehicle in vehicles_sorted:
+            track_availability = self.vehicle_restrictions[vehicle]
             # Get all tracks that have current vehicle series assigned to them
             # and find the best one that vehicle fits in if it exists
             assigned_tracks = [t for t in tracks
@@ -125,13 +126,15 @@ class Solver:
             best_capacity = None
             best_track = None
             for t in assigned_tracks:
+                if not track_availability[t]:
+                    continue
                 # check for blocking tracks constraint validation
-                blocked_tracks = self.blocking_tracks.get(t)
+                blocked_tracks = self.blocking_tracks.get(t + 1)
                 if blocked_tracks:
                     invalid_flag = False
                     for bt in blocked_tracks:
-                        if len(s.schedule[bt]) > 0:
-                            if (self.departure_times[s.schedule[bt][0]] <
+                        if len(s.schedule[bt - 1]) > 0:
+                            if (self.departure_times[s.schedule[bt - 1][0]] <
                                     self.departure_times[vehicle]):
                                 invalid_flag = True
                     if invalid_flag:
@@ -151,12 +154,11 @@ class Solver:
             # no track in assigned track was found, need to assign new track to this vehicle series
             else:
                 # generate list of tracks that current vehicle can park on
-                track_availability = self.vehicle_restrictions[vehicle]
                 available_tracks = [t for t in tracks
                                     if track_availability[t] and s.series_on_track[t] is None]
                 # get blocking and non blocking tracks first, if there is no such track left,
                 # only then take from blocked tracks
-                blocking_tracks = list(self.blocking_tracks.keys())
+                blocking_tracks = [t - 1 for t in self.blocking_tracks.keys()]
                 usable_tracks = [t for t in available_tracks
                                  if t in self.nonblocking_tracks + blocking_tracks]
                 if len(usable_tracks) == 0:
@@ -171,10 +173,14 @@ class Solver:
                             self.vehicle_lengths[vehicle] <= self.track_lengths[t]):
                         best_can_hold_types = can_hold_types
                         best_track = t
-                s.unused_track_capacity[best_track] -= self.vehicle_lengths[vehicle]
-                s.series_on_track[best_track] = self.vehicle_series[vehicle]
-                s.used_tracks_count += 1
-                s.schedule[best_track].append(vehicle)
+
+                if best_track is not None:
+                    s.unused_track_capacity[best_track] -= self.vehicle_lengths[vehicle]
+                    s.series_on_track[best_track] = self.vehicle_series[vehicle]
+                    s.used_tracks_count += 1
+                    s.schedule[best_track].append(vehicle)
+                else:
+                    s.unscheduled_vehicles.add(vehicle)
 
         return s
 
@@ -182,6 +188,42 @@ class Solver:
         zipped_pairs = zip(self.departure_times, target_list)
         z = [x for _, x in sorted(zipped_pairs)]
         return z
+
+    def is_valid(self, solution):
+        """This function checks if solution respects all of constraints."""
+        tracks = list(range(self.track_count))
+        for track, track_index in zip(solution.schedule, tracks):
+            if len(track) > 1:
+                for first, second in zip(track, track[1:]):
+                        if self.departure_times[first] > self.departure_times[second]:
+                            return (False,
+                                    'Vehicle {} departs later than vehicle {}!'.format(first + 1,
+                                                                                       second + 1))
+                        if self.vehicle_series[first] != self.vehicle_series[second]:
+                            return (False,
+                                    'Vehicle {} is not same series as vehicle {}!'.format(first + 1,
+                                                                                          second + 1))
+            for vehicle in track:
+                if not self.vehicle_restrictions[vehicle][track_index]:
+                    return (False,
+                            'Vehicle {} is restricted to park on track {}!'.format(vehicle + 1,
+                                                                                   track_index + 1))
+            if solution.unused_track_capacity[track_index] < 0:
+                return (False,
+                        'Track {} is over its capacity!'.format(track_index + 1))
+        for blocking_track in self.blocking_tracks.keys():
+            for blocked_track in self.blocking_tracks[blocking_track]:
+                blocking_schedule = solution.schedule[blocking_track - 1]
+                blocked_schedule = solution.schedule[blocked_track - 1]
+                if len(blocked_schedule) > 0 and len(blocking_schedule) > 0:
+                    if (self.departure_times[blocking_schedule[-1]] >
+                            self.departure_times[blocked_schedule[0]]):
+                        print(self.departure_times[blocking_schedule[-1]])
+                        print(self.departure_times[blocked_schedule[0]])
+                        return (False,
+                                'First vehicle in blocked track {} departs sooner than last vehicle in blocking track {}'.format(blocked_track,
+                                                                                                                                 blocking_track))
+        return (True, '')
 
 
 class Solution:
@@ -200,6 +242,9 @@ class Solution:
 
         # Result data structure - list of tracks where every element is list of vehicles
         self.schedule = [[] for _ in range(track_count)]
+
+        # Set of vehicles that couldn't fit anywhere
+        self.unscheduled_vehicles = set()
 
     def __str__(self):
         string_schedule = []

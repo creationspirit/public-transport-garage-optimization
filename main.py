@@ -19,8 +19,13 @@ def main():
     print('First global goal:', solver.global_goal_first(solver.initial_solution))
     print('Second global goal:', solver.global_goal_second(solver.initial_solution))
     print('Fitness function:', solver.fitness_func(solver.initial_solution))
+    print('Unscheduled vehicles count:', len(solver.initial_solution.unscheduled_vehicles))
+    is_valid, message = solver.is_valid(solver.initial_solution)
+    print('Is valid:', is_valid)
+    print(message)
     print(solver.initial_solution)
 
+    # write formatted result into output file
     write_result(str(solver.initial_solution), 'initial', instance)
 
 
