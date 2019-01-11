@@ -25,10 +25,9 @@ def main():
     print(message)
     print(solver.initial_solution)
 
-
-    #neighbourhood = solver.generate_neighbourhood(solver.initial_solution, 3)
+    # neighbourhood = solver.generate_neighbourhood(solver.initial_solution, 1)
     # print_neighbourhood(neighbourhood)
-    taboo_best_solution = solver.taboo_search(5, 10, 5)
+    taboo_best_solution = solver.taboo_search(50, 100, 100)
     print()
     print('Taboo fitness function:', solver.fitness_func(taboo_best_solution))
     print(taboo_best_solution)

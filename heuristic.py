@@ -234,41 +234,47 @@ class Solver:
             
             if len(self.initial_solution.unscheduled_vehicles) > 0:
                 # add unscheduled vehicles to scheduled
-                s.schedule.append(s.unscheduled_vehicles)
+                s.schedule.append(list(s.unscheduled_vehicles))
 
             tracks_count = len(s.schedule)
 
-            # randomly find non-empty track
+            # find random track
             selected_track1_index = random.randrange(tracks_count)
-            while len(s.schedule[selected_track1_index]) < 1:
-                selected_track1_index = random.randrange(tracks_count)
-
-            # randomly find non-empty track and two vehicles from unscheduled list cannot be choosen
+            # randomly find track and cannot choose two empty tracks
             selected_track2_index = random.randrange(tracks_count)
-            while len(s.schedule[selected_track2_index]) < 1:
+            while len(s.schedule[selected_track1_index]) == 0 and len(s.schedule[selected_track2_index]) == 0:
                 selected_track2_index = random.randrange(tracks_count)            
 
             selected_track2_count = len(s.schedule[selected_track2_index]) 
             selected_track1_count = len(s.schedule[selected_track1_index])
-            
-            selected_vehicle1_index = random.randrange(selected_track1_count)
-            selected_vehicle2_index = random.randrange(selected_track2_count)
+            if selected_track1_count > 0 and selected_track2_count > 0:
+                
+                selected_vehicle1_index = random.randrange(selected_track1_count)
+                selected_vehicle2_index = random.randrange(selected_track2_count)
 
-            # swap vehicles
-            tmp = s.schedule[selected_track1_index][selected_vehicle1_index]
-            s.schedule[selected_track1_index][selected_vehicle1_index] = s.schedule[selected_track2_index][selected_vehicle2_index] 
-            s.schedule[selected_track2_index][selected_vehicle2_index] = tmp
-
+                # swap vehicles
+                tmp = s.schedule[selected_track1_index][selected_vehicle1_index]
+                s.schedule[selected_track1_index][selected_vehicle1_index] = s.schedule[selected_track2_index][selected_vehicle2_index] 
+                s.schedule[selected_track2_index][selected_vehicle2_index] = tmp
+            elif selected_track1_count == 0:
+                # first track is empty
+                selected_vehicle2_index = random.randrange(selected_track2_count)
+                selected_vehicle2 = s.schedule[selected_track2_index].pop(selected_vehicle2_index)
+                s.schedule[selected_track1_index].append(selected_vehicle2) 
+            elif selected_track2_count == 0:
+                # second track is empty
+                selected_vehicle1_index = random.randrange(selected_track1_count)
+                selected_vehicle1 = s.schedule[selected_track1_index].pop(selected_vehicle1_index)
+                s.schedule[selected_track2_index].append(selected_vehicle1)
             # update solution
             # remove unscheduled vehicles
             if len(s.unscheduled_vehicles) > 0:
-                unscheduled_vehicles =  s.schedule.pop()
+                unscheduled_vehicles =  set(s.schedule.pop())
                 s.unscheduled_vehicles = unscheduled_vehicles
 
             s.used_tracks_count = self.count_used_tracks(s)
             s.series_on_track = self.initialize_series_on_track(s)
             s.unused_track_capacity = self.update_unused_track_capacity(s)
-
             if self.is_valid(s) and s.schedule != self.initial_solution.schedule:
                 neighbourhood.add(s)
 
@@ -289,11 +295,12 @@ class Solver:
         return series_on_track
 
     def update_unused_track_capacity(self, solution):
-        unused_tracks_capacity = self.track_lengths.copy()
-
-        for track, unused_track in zip(solution.schedule, unused_tracks_capacity):
+        track_lengths = self.track_lengths.copy()
+        unused_tracks_capacity = []
+        for track, unused_track in zip(solution.schedule, track_lengths):
             for vehicle in track:
                 unused_track -= self.vehicle_lengths[vehicle]
+            unused_tracks_capacity.append(unused_track)
         return unused_tracks_capacity
 
     def taboo_search(self, taboo_duration, iterations, neighbourhood_length):
@@ -306,7 +313,7 @@ class Solver:
             neighbourhood = self.generate_neighbourhood(best_solution, neighbourhood_length)
 
             for neighbour in neighbourhood:
-                print('test: ', self.fitness_func(neighbour))
+                # print('test: ', self.fitness_func(neighbour))
                 if not (neighbour in taboo_list) and self.fitness_func(best_solution) < self.fitness_func(neighbour):
                     best_solution = neighbour
                     taboo_list.insert(0, neighbour)
