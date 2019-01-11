@@ -25,9 +25,24 @@ def main():
     print(message)
     print(solver.initial_solution)
 
+
+    #neighbourhood = solver.generate_neighbourhood(solver.initial_solution, 3)
+    # print_neighbourhood(neighbourhood)
+    taboo_best_solution = solver.taboo_search(5, 10, 5)
+    print()
+    print('Taboo fitness function:', solver.fitness_func(taboo_best_solution))
+    print(taboo_best_solution)
+    
     # write formatted result into output file
     write_result(str(solver.initial_solution), 'initial', instance)
 
+def print_neighbourhood(neighbourhood):
+    i = 0
+    print('Neighbourhood:')
+    for solution in neighbourhood:
+        print('Neighbour', i+1)
+        print(solution)
+        i+=1
 
 def load_instance(filename):
     file_path = 'data/{}'.format(filename)
