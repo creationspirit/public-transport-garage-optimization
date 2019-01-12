@@ -275,7 +275,7 @@ class Solver:
             s.used_tracks_count = self.count_used_tracks(s)
             s.series_on_track = self.initialize_series_on_track(s)
             s.unused_track_capacity = self.update_unused_track_capacity(s)
-            if self.is_valid(s) and s.schedule != self.initial_solution.schedule:
+            if self.is_valid(s)[0] != False and s.schedule != self.initial_solution.schedule:
                 neighbourhood.add(s)
 
         return neighbourhood
