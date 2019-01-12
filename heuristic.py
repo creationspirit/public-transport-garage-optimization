@@ -229,6 +229,14 @@ class Solver:
     def generate_neighbourhood(self, initial_solution, neighbourhood_length):
         neighbourhood = set()
 
+        # try to add unscheduled vehicles to produce neighbourhood
+        # check if unused capacity is bigger then some of the unscheduled vehicles
+        
+        unscheduled_neighbourhood = self.generate_unscheduled_neughbourhood(initial_solution)
+        for s in unscheduled_neighbourhood:
+            if self.is_valid(s)[0] != False and s.schedule != self.initial_solution.schedule:
+                neighbourhood.add(s)
+
         while len(neighbourhood) < neighbourhood_length:
             s = copy.deepcopy(initial_solution)
             
@@ -280,6 +288,44 @@ class Solver:
 
         return neighbourhood
 
+    def generate_unscheduled_neughbourhood(self, solution):
+        unused_track_capacity = solution.unused_track_capacity
+        unscheduled_neighbourhood = []
+
+        for vehicle in solution.unscheduled_vehicles:
+            for track_number in range(0, len(solution.schedule)):
+                if unused_track_capacity[track_number] >= self.vehicle_lengths[vehicle] + 1:
+                    # vehicles can park between all other vehicles in track
+                    # add vehicle to schedule between all elements
+                    for vehicle_position in range(0, len(solution.schedule[track_number]) + 1):
+                        s = copy.deepcopy(solution)
+                        s.schedule[track_number].insert(vehicle_position, vehicle)
+                        s.unscheduled_vehicles.remove(vehicle)
+                        s = self.update_solution(s)
+                        unscheduled_neighbourhood.append(s)
+                elif unused_track_capacity[track_number] >= self.vehicle_lengths[vehicle] + 0.5:
+                    # vehicle can park as first or last in track
+                    s = copy.deepcopy(solution)
+                    s.schedule[track_number].insert(0, vehicle)
+                    s.unscheduled_vehicles.remove(vehicle)
+                    s = self.update_solution(s)
+                    unscheduled_neighbourhood.append(s)
+
+                    s = copy.deepcopy(solution)
+                    s.schedule[track_number].append()
+                    s.unscheduled_vehicles.remove(vehicle)
+                    s = self.update_solution(s)
+                    unscheduled_neighbourhood.append(s)
+
+        return unscheduled_neighbourhood
+
+    def update_solution(self, solution):
+        s = copy.deepcopy(solution)
+        s.used_tracks_count = self.count_used_tracks(s)
+        s.series_on_track = self.initialize_series_on_track(s)
+        s.unused_track_capacity = self.update_unused_track_capacity(s)
+        return s
+
     def count_used_tracks(self, solution):
         count = 0
         for track in solution.schedule:
@@ -320,6 +366,7 @@ class Solver:
                     if taboo_duration == len(taboo_list):
                         taboo_list.pop()    
             current_iteration += 1
+            #print(current_iteration)
         return best_solution
 
 
