@@ -236,10 +236,9 @@ class Solver:
         for s in unscheduled_neighbourhood:
             if self.is_valid(s)[0] != False and s.schedule != self.initial_solution.schedule:
                 neighbourhood.add(s)
-
+        
         while len(neighbourhood) < neighbourhood_length:
             s = copy.deepcopy(initial_solution)
-            
             if len(self.initial_solution.unscheduled_vehicles) > 0:
                 # add unscheduled vehicles to scheduled
                 s.schedule.append(list(s.unscheduled_vehicles))
@@ -366,7 +365,7 @@ class Solver:
                     if taboo_duration == len(taboo_list):
                         taboo_list.pop()    
             current_iteration += 1
-            #print(current_iteration)
+            print(current_iteration)
         return best_solution
 
 

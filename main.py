@@ -1,6 +1,6 @@
 import argparse
 import os
-
+import time
 from heuristic import Solver
 
 
@@ -24,18 +24,25 @@ def main():
     print('Is valid:', is_valid)
     print(message)
     print(solver.initial_solution)
+    # write formatted result into output file
+    write_result(str(solver.initial_solution), 'initial', instance)
 
     # neighbourhood = solver.generate_neighbourhood(solver.initial_solution, 1)
     # print_neighbourhood(neighbourhood)
-    taboo_best_solution = solver.taboo_search(50, 50, 50)
+    start = time.time()
+    taboo_best_solution = solver.taboo_search(50, 1, 100)
+    end = time.time()
     print()
-    print('Taboo fitness function:', solver.fitness_func(taboo_best_solution))
+    print('Taboo solution')
+    print('Code execution: ', end - start)
     print('Unscheduled vehicles count:', len(taboo_best_solution.unscheduled_vehicles))
-    print('Is taboo valid: ', solver.is_valid(taboo_best_solution))    
+    print('Is taboo valid: ', solver.is_valid(taboo_best_solution)) 
+    print('First global goal:', solver.global_goal_first(taboo_best_solution))
+    print('Second global goal:', solver.global_goal_second(taboo_best_solution))   
+    print('Taboo fitness function:', solver.fitness_func(taboo_best_solution))
     print(taboo_best_solution)
     
-    # write formatted result into output file
-    write_result(str(solver.initial_solution), 'initial', instance)
+    write_result(str(taboo_best_solution), '5m', instance)
 
 def print_neighbourhood(neighbourhood):
     i = 0
