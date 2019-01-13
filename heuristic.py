@@ -34,6 +34,7 @@ class Solver:
 
     def global_goal_first(self, solution):
         # first subfunction
+
         f_1 = 0
         temp_first = None
         for first, second in zip(solution.series_on_track, solution.series_on_track[1:]):
@@ -57,7 +58,11 @@ class Solver:
             if used is not None:
                 f_3 += leftover
         p_3 = 1.0 / (self.track_length_sum - self.vehicle_length_sum)
-
+        print('f')
+        print('first subfunction', (p_1 * f_1))
+        print('second subfunction', (p_2 * f_2))
+        print('third subfunction', (p_3 * f_3))
+        
         return (p_1 * f_1) + (p_2 * f_2) + (p_3 * f_3)
 
     def global_goal_second(self, solution):
@@ -94,12 +99,18 @@ class Solver:
                     g_3 += self.__get_vehicle_departure_gap_factor(first, second)
                     pair_counter += 1
         r_3 = 1.0 / (15 * pair_counter)
+        print('g')
+        print('first subfunction', (r_1 * g_1))
+        print('second subfunction', (r_2 * g_2))
+        print('third subfunction', (r_3 * g_3))
+        print('r_3', r_3)
+        print('g_3', g_3)
 
         return (r_1 * g_1) + (r_2 * g_2) + (r_3 * g_3)
 
     def __get_vehicle_departure_gap_factor(self, vehicle_1, vehicle_2):
         deprature_diff = self.departure_times[vehicle_2] - self.departure_times[vehicle_1]
-        if deprature_diff >= 10 or deprature_diff <= 20:
+        if deprature_diff >= 10 and deprature_diff <= 20:
             return 15
         elif deprature_diff > 20:
             return 10
@@ -239,6 +250,7 @@ class Solver:
         
         while len(neighbourhood) < neighbourhood_length:
             s = copy.deepcopy(initial_solution)
+
             if len(self.initial_solution.unscheduled_vehicles) > 0:
                 # add unscheduled vehicles to scheduled
                 s.schedule.append(list(s.unscheduled_vehicles))
@@ -344,7 +356,8 @@ class Solver:
         unused_tracks_capacity = []
         for track, unused_track in zip(solution.schedule, track_lengths):
             for vehicle in track:
-                unused_track -= self.vehicle_lengths[vehicle]
+                unused_track -= (self.vehicle_lengths[vehicle] + 0.5)
+            unused_track += 0.5
             unused_tracks_capacity.append(unused_track)
         return unused_tracks_capacity
 
