@@ -58,10 +58,6 @@ class Solver:
             if used is not None:
                 f_3 += leftover
         p_3 = 1.0 / (self.track_length_sum - self.vehicle_length_sum)
-        print('f')
-        print('first subfunction', (p_1 * f_1))
-        print('second subfunction', (p_2 * f_2))
-        print('third subfunction', (p_3 * f_3))
         
         return (p_1 * f_1) + (p_2 * f_2) + (p_3 * f_3)
 
@@ -99,12 +95,6 @@ class Solver:
                     g_3 += self.__get_vehicle_departure_gap_factor(first, second)
                     pair_counter += 1
         r_3 = 1.0 / (15 * pair_counter)
-        print('g')
-        print('first subfunction', (r_1 * g_1))
-        print('second subfunction', (r_2 * g_2))
-        print('third subfunction', (r_3 * g_3))
-        print('r_3', r_3)
-        print('g_3', g_3)
 
         return (r_1 * g_1) + (r_2 * g_2) + (r_3 * g_3)
 
@@ -250,7 +240,6 @@ class Solver:
         
         while len(neighbourhood) < neighbourhood_length:
             s = copy.deepcopy(initial_solution)
-
             if len(self.initial_solution.unscheduled_vehicles) > 0:
                 # add unscheduled vehicles to scheduled
                 s.schedule.append(list(s.unscheduled_vehicles))
@@ -361,25 +350,31 @@ class Solver:
             unused_tracks_capacity.append(unused_track)
         return unused_tracks_capacity
 
-    def taboo_search(self, taboo_duration, iterations, neighbourhood_length):
+    def taboo_search(self, taboo_duration, iterations, neighbourhood_length, reset_iteration):
         taboo_list = []
         best_solution = self.initial_solution
-
+        current_solution = best_solution
         current_iteration = 0
+
         while current_iteration < iterations:
             
             neighbourhood = self.generate_neighbourhood(best_solution, neighbourhood_length)
 
             for neighbour in neighbourhood:
-                # print('test: ', self.fitness_func(neighbour))
                 if not (neighbour in taboo_list) and self.fitness_func(best_solution) < self.fitness_func(neighbour):
                     best_solution = neighbour
                     taboo_list.insert(0, neighbour)
                     if taboo_duration == len(taboo_list):
-                        taboo_list.pop()    
+                        taboo_list.pop()
+
             current_iteration += 1
+            if current_iteration % reset_iteration == 0 or current_iteration == iterations - 1:
+                if self.fitness_func(current_solution) < self.fitness_func(best_solution):
+                    # print('current:', current_solution)
+                    current_solution = best_solution
+                best_solution = self.initial_solution
             print(current_iteration)
-        return best_solution
+        return current_solution
 
 
 class Solution:

@@ -30,7 +30,7 @@ def main():
     # neighbourhood = solver.generate_neighbourhood(solver.initial_solution, 1)
     # print_neighbourhood(neighbourhood)
     start = time.time()
-    taboo_best_solution = solver.taboo_search(50, 1, 2)
+    taboo_best_solution = solver.taboo_search(50, 300, 100, 50)
     end = time.time()
     print()
     print('Taboo solution')
@@ -42,7 +42,7 @@ def main():
     print('Taboo fitness function:', solver.fitness_func(taboo_best_solution))
     print(taboo_best_solution)
     
-    write_result(str(taboo_best_solution), '5m', instance)
+    write_result(str(taboo_best_solution), '1m', instance)
 
 def print_neighbourhood(neighbourhood):
     i = 0
