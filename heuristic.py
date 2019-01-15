@@ -1,5 +1,6 @@
 import numpy as np
-
+import random
+import copy
 
 class Solver:
     def __init__(self, vehicle_count, track_count, vehicle_lengths, vehicle_series,
@@ -33,6 +34,7 @@ class Solver:
 
     def global_goal_first(self, solution):
         # first subfunction
+
         f_1 = 0
         temp_first = None
         for first, second in zip(solution.series_on_track, solution.series_on_track[1:]):
@@ -56,7 +58,7 @@ class Solver:
             if used is not None:
                 f_3 += leftover
         p_3 = 1.0 / (self.track_length_sum - self.vehicle_length_sum)
-
+        
         return (p_1 * f_1) + (p_2 * f_2) + (p_3 * f_3)
 
     def global_goal_second(self, solution):
@@ -98,7 +100,7 @@ class Solver:
 
     def __get_vehicle_departure_gap_factor(self, vehicle_1, vehicle_2):
         deprature_diff = self.departure_times[vehicle_2] - self.departure_times[vehicle_1]
-        if deprature_diff >= 10 or deprature_diff <= 20:
+        if deprature_diff >= 10 and deprature_diff <= 20:
             return 15
         elif deprature_diff > 20:
             return 10
@@ -218,12 +220,161 @@ class Solver:
                 if len(blocked_schedule) > 0 and len(blocking_schedule) > 0:
                     if (self.departure_times[blocking_schedule[-1]] >
                             self.departure_times[blocked_schedule[0]]):
-                        print(self.departure_times[blocking_schedule[-1]])
-                        print(self.departure_times[blocked_schedule[0]])
+                        #print(self.departure_times[blocking_schedule[-1]])
+                        #print(self.departure_times[blocked_schedule[0]])
                         return (False,
                                 'First vehicle in blocked track {} departs sooner than last vehicle in blocking track {}'.format(blocked_track,
                                                                                                                                  blocking_track))
         return (True, '')
+
+    def generate_neighbourhood(self, initial_solution, neighbourhood_length):
+        neighbourhood = set()
+
+        # try to add unscheduled vehicles to produce neighbourhood
+        # check if unused capacity is bigger then some of the unscheduled vehicles
+        
+        unscheduled_neighbourhood = self.generate_unscheduled_neughbourhood(initial_solution)
+        for s in unscheduled_neighbourhood:
+            if self.is_valid(s)[0] != False and s.schedule != self.initial_solution.schedule:
+                neighbourhood.add(s)
+        
+        while len(neighbourhood) < neighbourhood_length:
+            s = copy.deepcopy(initial_solution)
+            if len(self.initial_solution.unscheduled_vehicles) > 0:
+                # add unscheduled vehicles to scheduled
+                s.schedule.append(list(s.unscheduled_vehicles))
+
+            tracks_count = len(s.schedule)
+
+            # find random track
+            selected_track1_index = random.randrange(tracks_count)
+            # randomly find track and cannot choose two empty tracks
+            selected_track2_index = random.randrange(tracks_count)
+            while len(s.schedule[selected_track1_index]) == 0 and len(s.schedule[selected_track2_index]) == 0:
+                selected_track2_index = random.randrange(tracks_count)            
+
+            selected_track2_count = len(s.schedule[selected_track2_index]) 
+            selected_track1_count = len(s.schedule[selected_track1_index])
+            if selected_track1_count > 0 and selected_track2_count > 0:
+                
+                selected_vehicle1_index = random.randrange(selected_track1_count)
+                selected_vehicle2_index = random.randrange(selected_track2_count)
+
+                # swap vehicles
+                tmp = s.schedule[selected_track1_index][selected_vehicle1_index]
+                s.schedule[selected_track1_index][selected_vehicle1_index] = s.schedule[selected_track2_index][selected_vehicle2_index] 
+                s.schedule[selected_track2_index][selected_vehicle2_index] = tmp
+            elif selected_track1_count == 0:
+                # first track is empty
+                selected_vehicle2_index = random.randrange(selected_track2_count)
+                selected_vehicle2 = s.schedule[selected_track2_index].pop(selected_vehicle2_index)
+                s.schedule[selected_track1_index].append(selected_vehicle2) 
+            elif selected_track2_count == 0:
+                # second track is empty
+                selected_vehicle1_index = random.randrange(selected_track1_count)
+                selected_vehicle1 = s.schedule[selected_track1_index].pop(selected_vehicle1_index)
+                s.schedule[selected_track2_index].append(selected_vehicle1)
+            # update solution
+            # remove unscheduled vehicles
+            if len(s.unscheduled_vehicles) > 0:
+                unscheduled_vehicles =  set(s.schedule.pop())
+                s.unscheduled_vehicles = unscheduled_vehicles
+
+            s.used_tracks_count = self.count_used_tracks(s)
+            s.series_on_track = self.initialize_series_on_track(s)
+            s.unused_track_capacity = self.update_unused_track_capacity(s)
+            if self.is_valid(s)[0] != False and s.schedule != self.initial_solution.schedule:
+                neighbourhood.add(s)
+
+        return neighbourhood
+
+    def generate_unscheduled_neughbourhood(self, solution):
+        unused_track_capacity = solution.unused_track_capacity
+        unscheduled_neighbourhood = []
+
+        for vehicle in solution.unscheduled_vehicles:
+            for track_number in range(0, len(solution.schedule)):
+                if unused_track_capacity[track_number] >= self.vehicle_lengths[vehicle] + 1:
+                    # vehicles can park between all other vehicles in track
+                    # add vehicle to schedule between all elements
+                    for vehicle_position in range(0, len(solution.schedule[track_number]) + 1):
+                        s = copy.deepcopy(solution)
+                        s.schedule[track_number].insert(vehicle_position, vehicle)
+                        s.unscheduled_vehicles.remove(vehicle)
+                        s = self.update_solution(s)
+                        unscheduled_neighbourhood.append(s)
+                elif unused_track_capacity[track_number] >= self.vehicle_lengths[vehicle] + 0.5:
+                    # vehicle can park as first or last in track
+                    s = copy.deepcopy(solution)
+                    s.schedule[track_number].insert(0, vehicle)
+                    s.unscheduled_vehicles.remove(vehicle)
+                    s = self.update_solution(s)
+                    unscheduled_neighbourhood.append(s)
+
+                    s = copy.deepcopy(solution)
+                    s.schedule[track_number].append()
+                    s.unscheduled_vehicles.remove(vehicle)
+                    s = self.update_solution(s)
+                    unscheduled_neighbourhood.append(s)
+
+        return unscheduled_neighbourhood
+
+    def update_solution(self, solution):
+        s = copy.deepcopy(solution)
+        s.used_tracks_count = self.count_used_tracks(s)
+        s.series_on_track = self.initialize_series_on_track(s)
+        s.unused_track_capacity = self.update_unused_track_capacity(s)
+        return s
+
+    def count_used_tracks(self, solution):
+        count = 0
+        for track in solution.schedule:
+            if len(track) != 0:
+                count += 1
+        return count
+
+    def initialize_series_on_track(self, solution):
+        series_on_track = [None] * self.track_count
+        for i in range(0, self.track_count):
+            if (len(solution.schedule[i]) > 0):
+                series_on_track[i] = self.vehicle_series[solution.schedule[i][0]]
+        return series_on_track
+
+    def update_unused_track_capacity(self, solution):
+        track_lengths = self.track_lengths.copy()
+        unused_tracks_capacity = []
+        for track, unused_track in zip(solution.schedule, track_lengths):
+            for vehicle in track:
+                unused_track -= (self.vehicle_lengths[vehicle] + 0.5)
+            unused_track += 0.5
+            unused_tracks_capacity.append(unused_track)
+        return unused_tracks_capacity
+
+    def taboo_search(self, taboo_duration, iterations, neighbourhood_length, reset_iteration):
+        taboo_list = []
+        best_solution = self.initial_solution
+        current_solution = best_solution
+        current_iteration = 0
+
+        while current_iteration < iterations:
+            
+            neighbourhood = self.generate_neighbourhood(best_solution, neighbourhood_length)
+
+            for neighbour in neighbourhood:
+                if not (neighbour in taboo_list) and self.fitness_func(best_solution) < self.fitness_func(neighbour):
+                    best_solution = neighbour
+                    taboo_list.insert(0, neighbour)
+                    if taboo_duration == len(taboo_list):
+                        taboo_list.pop()
+
+            current_iteration += 1
+            if current_iteration % reset_iteration == 0 or current_iteration == iterations - 1:
+                if self.fitness_func(current_solution) < self.fitness_func(best_solution):
+                    # print('current:', current_solution)
+                    current_solution = best_solution
+                best_solution = self.initial_solution
+            print(current_iteration)
+        return current_solution
 
 
 class Solution:
@@ -251,7 +402,13 @@ class Solution:
         for track in self.schedule:
             string_schedule.append(' '.join([str(v + 1) for v in track]) if len(track) > 0 else '')
         return '\n'.join(string_schedule)
-
-    def generate_neighbourhood(self):
-        # TODO
-        pass
+        
+    def __eq__(self, other):
+        if isinstance(other, Solution):
+            return ((self.schedule == other.schedule) and (self.unscheduled_vehicles == other.unscheduled_vehicles) and (self.series_on_track == other.series_on_track)
+            and self.used_tracks_count == other.used_tracks_count and self.unused_track_capacity == other.unused_track_capacity)
+        else:
+            return False
+    def __hash__(self):
+        return hash((tuple(self.series_on_track), self.used_tracks_count,(tuple(val) for val in self.schedule), tuple(self.unused_track_capacity), tuple(self.unscheduled_vehicles)))
+    pass

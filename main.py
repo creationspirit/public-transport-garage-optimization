@@ -1,6 +1,6 @@
 import argparse
 import os
-
+import time
 from heuristic import Solver
 
 
@@ -24,10 +24,33 @@ def main():
     print('Is valid:', is_valid)
     print(message)
     print(solver.initial_solution)
-
     # write formatted result into output file
     write_result(str(solver.initial_solution), 'initial', instance)
 
+    # neighbourhood = solver.generate_neighbourhood(solver.initial_solution, 1)
+    # print_neighbourhood(neighbourhood)
+    start = time.time()
+    taboo_best_solution = solver.taboo_search(50, 300, 100, 50)
+    end = time.time()
+    print()
+    print('Taboo solution')
+    print('Code execution: ', end - start)
+    print('Unscheduled vehicles count:', len(taboo_best_solution.unscheduled_vehicles))
+    print('Is taboo valid: ', solver.is_valid(taboo_best_solution)) 
+    print('First global goal:', solver.global_goal_first(taboo_best_solution))
+    print('Second global goal:', solver.global_goal_second(taboo_best_solution))   
+    print('Taboo fitness function:', solver.fitness_func(taboo_best_solution))
+    print(taboo_best_solution)
+    
+    write_result(str(taboo_best_solution), '1m', instance)
+
+def print_neighbourhood(neighbourhood):
+    i = 0
+    print('Neighbourhood:')
+    for solution in neighbourhood:
+        print('Neighbour', i+1)
+        print(solution)
+        i+=1
 
 def load_instance(filename):
     file_path = 'data/{}'.format(filename)
